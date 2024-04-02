@@ -20,6 +20,8 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 import string
+import matplotlib.pyplot as plt 
+
 
 class TFIDF:
     def __init__(self, file_name : str, product_name: str):
@@ -35,6 +37,7 @@ class TFIDF:
         df_product = df[df['product']==self.product_name].head(1000)
         print("The total number of row in the product {nm} is {nb}".format(nb=df_product.shape[0],nm=self.product_name))
         return df_product
+    
     @staticmethod
     def preprocess_text(review_text):
         # Convert text to lowercase
@@ -60,11 +63,108 @@ class TFIDF:
     def process_select_product(self):
         df = self.select_product()
         df['review_cleaning'] = df['review_text'].astype(str).apply(TFIDF.preprocess_text)
-        return df.head(10)
+        return df
+    
+    def data_analysis_report(self):
+        df = self.select_product()
+        # Calculate count and percentage of each rating
+        rating_counts = df['rating'].value_counts().sort_index()
+        rating_percentages = (rating_counts / len(df)) * 100
+
+        # Create a bar chart
+        fig, ax1 = plt.subplots()
+
+        # Plotting count of ratings
+        ax1.bar(rating_counts.index.astype(str), rating_counts, color='b', alpha=0.7, label='Count')
+        ax1.set_xlabel('Rating')
+        ax1.set_ylabel('Count', color='b')
+
+        # Creating a secondary y-axis for percentages
+        ax2 = ax1.twinx()
+        ax2.plot(rating_percentages.index.astype(str), rating_percentages, color='r', marker='o', label='Percentage')
+        ax2.set_ylabel('Percentage (%)', color='r')
+
+        # Title and legends
+        plt.title("Distribution of Ratings of {pr}".format(pr=self.product_name))
+        fig.tight_layout()
+        plt.savefig(os.path.join(Path(__file__).parent.parent,"output",'ratings_distribution_'+self.product_name+'.png'))
+        
+        pass
+        
+    def create_sentiment_var(self):
+        df = self.select_product()
+        
+        #### Removing the neutral reviews
+        df_sentiment = df[df['rating'] != 3]
+        df_sentiment['sentiment'] = df_sentiment['rating'].apply(lambda rating : +1 if rating > 3 else 0)
+        
+        # Calculate count and percentage of each rating
+        sentiment_counts = df_sentiment['sentiment'].value_counts().sort_index()
+        sentiment_percentages = (sentiment_counts / len(df_sentiment)) * 100
+
+        # Create a bar chart
+        fig, ax1 = plt.subplots()
+
+        # Plotting count of ratings
+        ax1.bar(sentiment_counts.index.astype(str), sentiment_counts, color='b', alpha=0.7, label='Count')
+        ax1.set_xlabel('Sentiment')
+        ax1.set_ylabel('Count', color='b')
+
+        # Creating a secondary y-axis for percentages
+        ax2 = ax1.twinx()
+        ax2.plot(sentiment_percentages.index.astype(str), sentiment_percentages, color='r', marker='o', label='Percentage')
+        ax2.set_ylabel('Percentage (%)', color='r')
+
+        # Title and legends
+        plt.title("Distribution of sentiment of {pr}".format(pr=self.product_name))
+        fig.tight_layout()
+        plt.savefig(os.path.join(Path(__file__).parent.parent,"output",'sentiment_distribution_'+self.product_name+'.png'))
+        
+        #Positive vs Negative reviews
+        df_sentiment_droppedna = df_sentiment.dropna()  
+        #Positive vs Negative reviews
+        positive = df_sentiment_droppedna[df_sentiment_droppedna["sentiment"] == 1].dropna()
+        negative = df_sentiment_droppedna[df_sentiment_droppedna["sentiment"] == 0].dropna()
+        return df_sentiment_droppedna , positive, negative
+    
+    def split_input(self):
+        df, _ , _ = self.create_sentiment_var()
+        # Split the data into training and testing sets
+        X_train, X_test, y_train, y_test = train_test_split(df['review_text'], df['sentiment'], test_size=0.2, random_state=42)
+        # Create a TF-IDF vectorizer
+        vectorizer = TfidfVectorizer(max_features=5000)
+        # Fit the vectorizer to the training data
+        vectorizer.fit(X_train)
+        # Transform the training and testing data into TF-IDF vectors
+        X_train_tfidf = vectorizer.transform(X_train).toarray()
+        X_test_tfidf = vectorizer.transform(X_test).toarray()
+        return X_train_tfidf,X_test_tfidf , y_train ,y_test 
+    
+    def models(self):
+        # Step 5− Training the Model
+        model_names= "LogisticRegression"
+        models = LogisticRegression()
+        return models,model_names
+       
+    def train_model(self):
+        X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
+        model,model_name= self.models()
+        model.fit(X_train_tfidf,y_train )
+        y_pred = model.predict(X_test_tfidf)
+        accuracy = accuracy_score(y_test, y_pred)
+        precision = precision_score(y_test, y_pred, average='weighted')
+        recall = recall_score(y_test, y_pred, average='weighted')
+        f1 = f1_score(y_test, y_pred, average='weighted')
+        print("######## {ms} #######".format(ms=model_name))
+        print(f"Accuracy: {accuracy:}")
+        print(f"Precision: {precision:}")
+        print(f"Recall: {recall:}")
+        print(f"F1 score: {f1:}")
+        return accuracy,precision,recall,f1
     
 ####### Test Data
    
 instance = TFIDF("df_contact","Womens Clothing E-Commerce Reviews")
 #data = instance.read_data()
-data = instance.process_select_product()
-print(data)
+accuracy,precision,recall,f1 = instance.train_model()
+print(accuracy)
