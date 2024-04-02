@@ -11,7 +11,7 @@ from nltk.stem.porter import PorterStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import precision_score, recall_score, f1_score, log_loss, accuracy_score
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
@@ -21,6 +21,10 @@ from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 import string
 import matplotlib.pyplot as plt 
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
 
 
 class TFIDF:
@@ -142,29 +146,53 @@ class TFIDF:
     
     def models(self):
         # Step 5− Training the Model
-        model_names= "LogisticRegression"
-        models = LogisticRegression()
-        return models,model_names
-       
+        models = {
+        'LogisticRegression': LogisticRegression(random_state=42),
+         'KNeighborsClassifier': KNeighborsClassifier(),
+            'SVC': SVC(random_state=42),
+        'DecisionTreeClassifier': DecisionTreeClassifier(max_depth=1, random_state=42)
+        }
+        return models
+    
+    @staticmethod
+    def loss(y_true, y_pred, retu=False):
+        pre = precision_score(y_true, y_pred)
+        rec = recall_score(y_true, y_pred)
+        f1 = f1_score(y_true, y_pred)
+        loss = log_loss(y_true, y_pred)
+        acc = accuracy_score(y_true, y_pred)
+
+        if retu:
+            return pre, rec, f1, loss, acc
+        else:
+            print('  pre: %.3f\n  rec: %.3f\n  f1: %.3f\n  loss: %.3f\n  acc: %.3f' % (pre, rec, f1, loss, acc))
+            
+        
     def train_model(self):
+        f=[]
         X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
-        model,model_name= self.models()
-        model.fit(X_train_tfidf,y_train )
-        y_pred = model.predict(X_test_tfidf)
-        accuracy = accuracy_score(y_test, y_pred)
-        precision = precision_score(y_test, y_pred, average='weighted')
-        recall = recall_score(y_test, y_pred, average='weighted')
-        f1 = f1_score(y_test, y_pred, average='weighted')
-        print("######## {ms} #######".format(ms=model_name))
-        print(f"Accuracy: {accuracy:}")
-        print(f"Precision: {precision:}")
-        print(f"Recall: {recall:}")
-        print(f"F1 score: {f1:}")
-        return accuracy,precision,recall,f1
+        models= self.models()
+        for name, model in models.items():
+            model.fit(X_train_tfidf,y_train )
+            loss=TFIDF.loss(y_test, model.predict(X_test_tfidf))
+            f=[].append(loss)
+            print('-------{h}-------'.format(h=name))
+            
+        # y_pred = model.predict(X_test_tfidf)
+        # accuracy = accuracy_score(y_test, y_pred)
+        # precision = precision_score(y_test, y_pred, average='weighted')
+        # recall = recall_score(y_test, y_pred, average='weighted')
+        # f1 = f1_score(y_test, y_pred, average='weighted')
+        # print("######## {ms} #######".format(ms=model_name))
+        # print(f"Accuracy: {accuracy:}")
+        # print(f"Precision: {precision:}")
+        # print(f"Recall: {recall:}")
+        # print(f"F1 score: {f1:}")
+        return f
     
 ####### Test Data
    
 instance = TFIDF("df_contact","Womens Clothing E-Commerce Reviews")
 #data = instance.read_data()
-accuracy,precision,recall,f1 = instance.train_model()
-print(accuracy)
+f = instance.train_model()
+print(f)
