@@ -25,8 +25,16 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
-
-
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC, LinearSVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import Perceptron
+from sklearn.linear_model import SGDClassifier
+from sklearn.tree import DecisionTreeClassifier
+from xgboost import XGBClassifier
+from catboost import (CatBoostClassifier,CatBoostRegressor)
 class TFIDF:
     def __init__(self, file_name : str, product_name: str):
         self.file_name = file_name
@@ -91,13 +99,13 @@ class TFIDF:
         # Title and legends
         plt.title("Distribution of Ratings of {pr}".format(pr=self.product_name))
         fig.tight_layout()
+        print(os.path.join(Path(__file__).parent.parent,"output",'ratings_distribution_'+self.product_name+'.png'))
         plt.savefig(os.path.join(Path(__file__).parent.parent,"output",'ratings_distribution_'+self.product_name+'.png'))
         
-        pass
+        return df
         
     def create_sentiment_var(self):
-        df = self.select_product()
-        
+        df = self.select_product() 
         #### Removing the neutral reviews
         df_sentiment = df[df['rating'] != 3]
         df_sentiment['sentiment'] = df_sentiment['rating'].apply(lambda rating : +1 if rating > 3 else 0)
@@ -146,53 +154,44 @@ class TFIDF:
     
     def models(self):
         # Step 5− Training the Model
-        models = {
-        'LogisticRegression': LogisticRegression(random_state=42),
-         'KNeighborsClassifier': KNeighborsClassifier(),
-            'SVC': SVC(random_state=42),
-        'DecisionTreeClassifier': DecisionTreeClassifier(max_depth=1, random_state=42)
+        models = {'LogisticRegression': LogisticRegression(), 'KNeighborsClassifier':KNeighborsClassifier(), 'SVC':SVC()
+             , 'GaussianNB': GaussianNB(), 'Perceptron': Perceptron(), 'LinearSVC': LinearSVC(),
+              'SGDClassifier':SGDClassifier(),  
+              'DecisionTreeClassifier' : DecisionTreeClassifier(),'RandomForestClassifier':RandomForestClassifier(),"XGBClassifier":XGBClassifier(),"CatBoostClassifier":CatBoostClassifier()
         }
         return models
     
     @staticmethod
-    def loss(y_true, y_pred, retu=False):
-        pre = precision_score(y_true, y_pred)
-        rec = recall_score(y_true, y_pred)
-        f1 = f1_score(y_true, y_pred)
-        loss = log_loss(y_true, y_pred)
-        acc = accuracy_score(y_true, y_pred)
+    def loss(y_true, y_pred):
+        pre = round(precision_score(y_true, y_pred),2)
+        rec = round(recall_score(y_true, y_pred),2)
+        f1 = round(f1_score(y_true, y_pred),2)
+        loss = round(log_loss(y_true, y_pred),2)
+        acc = round(accuracy_score(y_true, y_pred),4)
 
-        if retu:
-            return pre, rec, f1, loss, acc
-        else:
-            print('  pre: %.3f\n  rec: %.3f\n  f1: %.3f\n  loss: %.3f\n  acc: %.3f' % (pre, rec, f1, loss, acc))
-            
-        
+        return pre, rec, f1, loss, acc
+
     def train_model(self):
-        f=[]
+        
+        results = []
         X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
         models= self.models()
         for name, model in models.items():
             model.fit(X_train_tfidf,y_train )
-            loss=TFIDF.loss(y_test, model.predict(X_test_tfidf))
-            f=[].append(loss)
-            print('-------{h}-------'.format(h=name))
-            
-        # y_pred = model.predict(X_test_tfidf)
-        # accuracy = accuracy_score(y_test, y_pred)
-        # precision = precision_score(y_test, y_pred, average='weighted')
-        # recall = recall_score(y_test, y_pred, average='weighted')
-        # f1 = f1_score(y_test, y_pred, average='weighted')
-        # print("######## {ms} #######".format(ms=model_name))
-        # print(f"Accuracy: {accuracy:}")
-        # print(f"Precision: {precision:}")
-        # print(f"Recall: {recall:}")
-        # print(f"F1 score: {f1:}")
-        return f
+            pre, rec, f1, loss, acc=TFIDF.loss(y_test, model.predict(X_test_tfidf))
+            #print('-------{h}-------'.format(h=name))
+            #print(pre, rec, f1, loss, acc)
+            results.append([name, pre, rec, f1, loss, acc])
+        df = pd.DataFrame(results, columns=['NAME', 'pre', 'rec', 'f1', 'loss', 'acc'])
+        #df.set_index('NAME', inplace=True)    
+        df.sort_values(by=['acc'], ascending=False, inplace=True) 
+        return df
     
 ####### Test Data
    
-instance = TFIDF("df_contact","Womens Clothing E-Commerce Reviews")
+instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
 #data = instance.read_data()
 f = instance.train_model()
 print(f)
+
+
