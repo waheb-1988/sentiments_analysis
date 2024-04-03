@@ -5,7 +5,9 @@
 # WordMap
 # APP
 # Streamlit 
-
+# https://www.kaggle.com/code/satishgunjal/ensemble-learning-bagging-boosting-stacking
+# https://www.kaggle.com/code/anuragbantu/stacking-ensemble-learning-beginner-s-guide
+# https://www.kaggle.com/code/shreayan98c/hyperparameter-tuning-tutorial
 ####### Students 
 # TFIDF...............> Done
 # Vectoraccount() ....................> Tomorrow / 2 days APP
