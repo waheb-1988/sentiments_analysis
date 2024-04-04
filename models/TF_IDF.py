@@ -35,6 +35,15 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
 from catboost import (CatBoostClassifier,CatBoostRegressor)
+from sklearn.model_selection import GridSearchCV
+import nltk
+from nltk.corpus import stopwords
+from wordcloud import WordCloud
+from sklearn.ensemble import BaggingRegressor
+from sklearn.metrics import mean_squared_error
+
+n_jobs = -1 # This parameter conrols the parallel processing. -1 means using all processors.
+random_state = 42 # This parameter controls the randomness of the data. Using some int value to get same results everytime this code is run.
 class TFIDF:
     def __init__(self, file_name : str, product_name: str):
         self.file_name = file_name
@@ -78,7 +87,7 @@ class TFIDF:
         return df
     
     def data_analysis_report(self):
-        df = self.select_product()
+        df = self.process_select_product()
         # Calculate count and percentage of each rating
         rating_counts = df['rating'].value_counts().sort_index()
         rating_percentages = (rating_counts / len(df)) * 100
@@ -105,7 +114,7 @@ class TFIDF:
         return df
         
     def create_sentiment_var(self):
-        df = self.select_product() 
+        df = self.process_select_product() 
         #### Removing the neutral reviews
         df_sentiment = df[df['rating'] != 3]
         df_sentiment['sentiment'] = df_sentiment['rating'].apply(lambda rating : +1 if rating > 3 else 0)
@@ -139,6 +148,31 @@ class TFIDF:
         negative = df_sentiment_droppedna[df_sentiment_droppedna["sentiment"] == 0].dropna()
         return df_sentiment_droppedna , positive, negative
     
+    def word_map(self):
+        _, positive, negative = self.create_sentiment_var()
+        stopwords_set = set(stopwords.words('english'))
+        stopwords_set.update(["br", "href"])
+
+        fig, axs = plt.subplots(1, 2, figsize=(12, 6))  # Adjust figsize as needed
+        
+        # Generate and save positive sentiment word cloud
+        text_positive = " ".join(review for review in positive["review_cleaning"])
+        wordcloud_positive = WordCloud(stopwords=stopwords_set).generate(text_positive)
+        axs[0].imshow(wordcloud_positive, interpolation='bilinear')
+        axs[0].axis("off")
+        axs[0].set_title('Positive Sentiment')
+
+        # Generate and save negative sentiment word cloud
+        text_negative = " ".join(review for review in negative["review_cleaning"])
+        wordcloud_negative = WordCloud(stopwords=stopwords_set).generate(text_negative)
+        axs[1].imshow(wordcloud_negative, interpolation='bilinear')
+        axs[1].axis("off")
+        axs[1].set_title('Negative Sentiment')
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(Path(__file__).parent.parent, "output", f'{self.product_name}_combined_wordclouds.png'))
+        return "Graphic saved in output folder"   
+    
     def split_input(self):
         df, _ , _ = self.create_sentiment_var()
         # Split the data into training and testing sets
@@ -151,8 +185,8 @@ class TFIDF:
         X_train_tfidf = vectorizer.transform(X_train).toarray()
         X_test_tfidf = vectorizer.transform(X_test).toarray()
         return X_train_tfidf,X_test_tfidf , y_train ,y_test 
-    
-    def models(self):
+    @staticmethod
+    def models():
         # Step 5− Training the Model
         models = {'LogisticRegression': LogisticRegression(), 'KNeighborsClassifier':KNeighborsClassifier(), 'SVC':SVC()
              , 'GaussianNB': GaussianNB(), 'Perceptron': Perceptron(), 'LinearSVC': LinearSVC(),
@@ -175,7 +209,7 @@ class TFIDF:
         
         results = []
         X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
-        models= self.models()
+        models= TFIDF.models()
         for name, model in models.items():
             model.fit(X_train_tfidf,y_train )
             pre, rec, f1, loss, acc=TFIDF.loss(y_test, model.predict(X_test_tfidf))
@@ -187,11 +221,82 @@ class TFIDF:
         df.sort_values(by=['acc'], ascending=False, inplace=True) 
         return df
     
+    # TODO Improv with good output
+    def hyper_tun(self):
+        models= TFIDF.models()
+        X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
+        for name,model in models.items():
+            if name == "DecisionTreeClassifier":
+                # Hyperparameter Optimization
+                parameters = {'max_features': ['log2', 'sqrt','auto'], 
+                            'criterion': ['entropy', 'gini'],
+                            'max_depth': [2, 3, 5, 10, 50], 
+                            'min_samples_split': [2, 3, 50, 100],
+                            'min_samples_leaf': [1, 5, 8, 10]
+                            }
+                grid_obj = GridSearchCV(model, parameters)
+                grid_obj = grid_obj.fit(X_train_tfidf, y_train)
+                clf = grid_obj.best_estimator_
+                # Train the model using the training sets 
+                clf.fit(X_train_tfidf, y_train)
+                pre, rec, f1, loss, acc=TFIDF.loss(y_test, clf.predict(X_test_tfidf))
+                print('-------{h}-------'.format(h=name))
+                print(pre, rec, f1, loss, acc)
+                return pre, rec, f1, loss, acc
+            
+        # TODO Improv with good output
+    def bagging_predictions(self,estimator):
+            X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
+            """
+            I/P
+            estimator: The base estimator from which the ensemble is grown.
+            O/P
+            br_y_pred: Predictions on test data for the base estimator.
+            
+            """
+            regr = BaggingRegressor(base_estimator=estimator,
+                                    n_estimators=10,
+                                    max_samples=1.0,
+                                    bootstrap=True, # Samples are drawn with replacement
+                                    n_jobs= n_jobs,
+                                    random_state=random_state).fit(X_train_tfidf, y_train)
+
+            br_y_pred = regr.predict(X_test_tfidf)
+
+            rmse_val = mean_squared_error(y_test, br_y_pred, squared= False) # squared= False > returns Root Mean Square Error   
+
+            print(f'RMSE for base estimator {regr.base_estimator_} = {rmse_val}\n')
+            ### 
+            instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
+            # #data = instance.read_data()
+            # X_train_tfidf,X_test_tfidf , y_train ,y_test  = instance.split_input()
+
+
+            # predictions = np.column_stack((instance.bagging_predictions(DecisionTreeClassifier()),
+            #                               instance.bagging_predictions(KNeighborsClassifier()),
+            #                               instance.bagging_predictions(LogisticRegression()),
+            #                               instance.bagging_predictions(RandomForestClassifier())))
+            # print(f"Bagged predictions shape: {predictions.shape}")
+            # y_pred = np.mean(predictions, axis=1)
+
+            # print("Aggregated predictions (y_pred) shape", y_pred.shape)
+
+            # rmse_val = mean_squared_error(y_test, y_pred, squared= False) # squared= False > returns Root Mean Square Error  
+            # models_scores = [] 
+            # models_scores.append(['Bagging', rmse_val])
+
+            # print(f'\nBagging RMSE= {rmse_val}')
+            return br_y_pred
+            
+                
+                
+            
+    
 ####### Test Data
    
 instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
 #data = instance.read_data()
-f = instance.train_model()
-print(f)
+df = instance.train_model()
+print(df)
 
 
