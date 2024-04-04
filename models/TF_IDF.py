@@ -294,9 +294,9 @@ class TFIDF:
     
 ####### Test Data
    
-instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
-#data = instance.read_data()
-df = instance.train_model()
-print(df)
+# instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
+# #data = instance.read_data()
+# df = instance.train_model()
+# print(df)
 
 
