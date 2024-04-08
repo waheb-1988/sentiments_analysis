@@ -108,8 +108,8 @@ class TFIDF:
         # Title and legends
         plt.title("Distribution of Ratings of {pr}".format(pr=self.product_name))
         fig.tight_layout()
-        print(os.path.join(Path(__file__).parent.parent,"output",'ratings_distribution_'+self.product_name+'.png'))
-        plt.savefig(os.path.join(Path(__file__).parent.parent,"output",'ratings_distribution_'+self.product_name+'.png'))
+        #print(os.path.join(Path(__file__).parent.parent,"output",'ratings_distribution_'+self.product_name+'.png'))
+        plt.savefig(os.path.join(Path(__file__).parent.parent,"output","rating",'ratings_distribution_'+self.product_name+'.png'))
         
         return df
         
@@ -139,7 +139,7 @@ class TFIDF:
         # Title and legends
         plt.title("Distribution of sentiment of {pr}".format(pr=self.product_name))
         fig.tight_layout()
-        plt.savefig(os.path.join(Path(__file__).parent.parent,"output",'sentiment_distribution_'+self.product_name+'.png'))
+        plt.savefig(os.path.join(Path(__file__).parent.parent,"output","sentiment",'sentiment_distribution_'+f'{self.product_name}_.png'))
         
         #Positive vs Negative reviews
         df_sentiment_droppedna = df_sentiment.dropna()  
@@ -170,7 +170,7 @@ class TFIDF:
         axs[1].set_title('Negative Sentiment')
 
         plt.tight_layout()
-        plt.savefig(os.path.join(Path(__file__).parent.parent, "output", f'{self.product_name}_combined_wordclouds.png'))
+        plt.savefig(os.path.join(Path(__file__).parent.parent, "output","wordmap", f'{self.product_name}_combined_wordclouds.png'))
         return "Graphic saved in output folder"   
     
     def split_input(self):
@@ -294,9 +294,11 @@ class TFIDF:
     
 ####### Test Data
    
-# instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
-# #data = instance.read_data()
-# df = instance.train_model()
+#instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
+# # #data = instance.read_data()
+#df = instance.data_analysis_report()
+#df = instance.create_sentiment_var()
+#df = instance.word_map()
 # print(df)
 
 
