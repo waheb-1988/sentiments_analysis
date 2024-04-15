@@ -14,3 +14,13 @@
 # Bag of word ...............> Sundey / 2 days APP
 # Word embedng ...............> Sundey / 2 days APP
 # BERT ...............> Tomorrow we talk about advanced method
+
+
+########
+### AP Desing
+### Hyper tuning the other ML ..........> Student 
+### Selection of only one ML..........> Prof 
+### Unblanced data solotion..........> Student 
+### Add time of excetion.........> Prof 
+### The other Feature extrcation..........> Student 
+### Create class of data processing ..........> Prof 
