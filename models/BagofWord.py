@@ -44,7 +44,7 @@ from sklearn.metrics import mean_squared_error
 
 n_jobs = -1 # This parameter conrols the parallel processing. -1 means using all processors.
 random_state = 42 # This parameter controls the randomness of the data. Using some int value to get same results everytime this code is run.
-class TFIDF:
+class BagofWord:
     def __init__(self, file_name : str, product_name: str):
         self.file_name = file_name
         self.product_name= product_name
@@ -172,7 +172,7 @@ class TFIDF:
         plt.tight_layout()
         plt.savefig(os.path.join(Path(__file__).parent.parent, "output","wordmap", f'{self.product_name}_combined_wordclouds.png'))
         return "Graphic saved in output folder"   
-    
+    ###### Cheanging function
     def split_input(self):
         df, _ , _ = self.create_sentiment_var()
         # Split the data into training and testing sets
@@ -209,10 +209,10 @@ class TFIDF:
         
         results = []
         X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
-        models= TFIDF.models()
+        models= BagofWord.models()
         for name, model in models.items():
             model.fit(X_train_tfidf,y_train )
-            pre, rec, f1, loss, acc=TFIDF.loss(y_test, model.predict(X_test_tfidf))
+            pre, rec, f1, loss, acc=BagofWord.loss(y_test, model.predict(X_test_tfidf))
             #print('-------{h}-------'.format(h=name))
             #print(pre, rec, f1, loss, acc)
             results.append([name, pre, rec, f1, loss, acc])
@@ -223,7 +223,7 @@ class TFIDF:
     
     # TODO Improv with good output
     def hyper_tun(self):
-        models= TFIDF.models()
+        models= BagofWord.models()
         X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
         for name,model in models.items():
             if name == "DecisionTreeClassifier":
@@ -267,7 +267,7 @@ class TFIDF:
 
             print(f'RMSE for base estimator {regr.base_estimator_} = {rmse_val}\n')
             ### 
-            instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
+            instance = BagofWord("df_contact","jumia_reviews_df_multi_page")
             # #data = instance.read_data()
             # X_train_tfidf,X_test_tfidf , y_train ,y_test  = instance.split_input()
 
@@ -294,12 +294,11 @@ class TFIDF:
     
 ####### Test Data
    
-instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
+#instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
 # # #data = instance.read_data()
-# df = instance.data_analysis_report()
-# df = instance.create_sentiment_var()
-# df = instance.word_map()
-df = instance.read_data()
-print(df)
+#df = instance.data_analysis_report()
+#df = instance.create_sentiment_var()
+#df = instance.word_map()
+# print(df)
 
 

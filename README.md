@@ -17,12 +17,18 @@
 
 
 ########
-### AP Desing
-### Hyper tuning the other ML ..........> Student 
+### AP Desing ..........> Student ( Propose template) ....................> 04
+### Ideas : 1. Adding split custimze
+### Hyper tuning the other ML ..........> Student ....................> 03
 ### Selection of only one ML..........> Prof 
-### Unblanced data solotion..........> Student 
-### Add time of excetion.........> Prof 
-### The other Feature extrcation..........> Student 
+### Unblanced data solution..........> Student ....................> 02
+### How we can solve it examples from kaggle 
+### Add time of excution.........> Prof 
+### The other Feature extrcation..........> Student....................> 01 
+### BagofWord...........> Fyncution ready (Done)
+### CountVec...........> Fyncution ready (Done)
+### WordEm...........> Fyncution ready (Thursday)
+### Ngram.......+Bag....> (Thursday)
 ### Create class of data processing ..........> Prof 
 
 #### Documentation
