@@ -8,7 +8,7 @@ import nltk
 nltk.download('stopwords')
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
-from sklearn.feature_extraction.text import TfidfVectorizer
+
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import precision_score, recall_score, f1_score, log_loss, accuracy_score
@@ -41,10 +41,11 @@ from nltk.corpus import stopwords
 from wordcloud import WordCloud
 from sklearn.ensemble import BaggingRegressor
 from sklearn.metrics import mean_squared_error
+from sklearn.feature_extraction.text import CountVectorizer
 
 n_jobs = -1 # This parameter conrols the parallel processing. -1 means using all processors.
 random_state = 42 # This parameter controls the randomness of the data. Using some int value to get same results everytime this code is run.
-class BagofWord:
+class COUNTV:
     def __init__(self, file_name : str, product_name: str):
         self.file_name = file_name
         self.product_name= product_name
@@ -83,7 +84,7 @@ class BagofWord:
     
     def process_select_product(self):
         df = self.select_product()
-        df['review_cleaning'] = df['review_text'].astype(str).apply(TFIDF.preprocess_text)
+        df['review_cleaning'] = df['review_text'].astype(str).apply(COUNTV.preprocess_text)
         return df
     
     def data_analysis_report(self):
@@ -172,47 +173,19 @@ class BagofWord:
         plt.tight_layout()
         plt.savefig(os.path.join(Path(__file__).parent.parent, "output","wordmap", f'{self.product_name}_combined_wordclouds.png'))
         return "Graphic saved in output folder"   
-    ###### Cheanging function
-    # Bag-of-words model
-    @staticmethod
-    def create_bow_model(text_data):
-        words = set()
-        for text in text_data:
-            words.update(text.split())
-        bow_model = {word: [] for word in words}
-        for text in text_data:
-            for word in text.split():
-                bow_model[word].append(1)
-        return bow_model
-
- 
-    # Token count matrix
-    def create_token_count_matrix(self):
-        df, _ , _ = self.create_sentiment_var()
-        bow_model = self.create_bow_model(df['review_cleaning'])
-        num_docs = len(df['review_cleaning'])
-        matrix = np.zeros((num_docs, len(bow_model)))
-        for i, text in enumerate(df['review_cleaning']):
-            for j, word in enumerate(text.split()):
-                if word in bow_model:
-                    matrix[i, j] = bow_model[word].count(1)
-        return matrix
-
     
-
-    def split_input(self):
+    def split_input(self): ############# Start of the new changing
         df, _ , _ = self.create_sentiment_var()
-        token_count_matrix = self.create_token_count_matrix()
         # Split the data into training and testing sets
         X_train, X_test, y_train, y_test = train_test_split(df['review_text'], df['sentiment'], test_size=0.2, random_state=42)
         # Create a TF-IDF vectorizer
-        vectorizer = TfidfVectorizer(max_features=5000)
+        vectorizer = CountVectorizer()
         # Fit the vectorizer to the training data
-        vectorizer.fit(X_train)
+        vectorizer.fit_transform(X_train)
         # Transform the training and testing data into TF-IDF vectors
-        X_train_tfidf = vectorizer.transform(X_train).toarray()
-        X_test_tfidf = vectorizer.transform(X_test).toarray()
-        return X_train_tfidf,X_test_tfidf , y_train ,y_test 
+        X_train_COUNTV = vectorizer.transform(X_train).toarray()
+        X_test_COUNTV = vectorizer.transform(X_test).toarray()
+        return X_train_COUNTV,X_test_COUNTV , y_train ,y_test 
     @staticmethod
     def models():
         # Step 5− Training the Model
@@ -236,11 +209,11 @@ class BagofWord:
     def train_model(self):
         
         results = []
-        X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
-        models= BagofWord.models()
+        X_train_COUNTV,X_test_COUNTV , y_train ,y_test  = self.split_input()
+        models= COUNTV.models()
         for name, model in models.items():
-            model.fit(X_train_tfidf,y_train )
-            pre, rec, f1, loss, acc=BagofWord.loss(y_test, model.predict(X_test_tfidf))
+            model.fit(X_train_COUNTV,y_train )
+            pre, rec, f1, loss, acc=COUNTV.loss(y_test, model.predict(X_test_COUNTV))
             #print('-------{h}-------'.format(h=name))
             #print(pre, rec, f1, loss, acc)
             results.append([name, pre, rec, f1, loss, acc])
@@ -251,8 +224,8 @@ class BagofWord:
     
     # TODO Improv with good output
     def hyper_tun(self):
-        models= BagofWord.models()
-        X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
+        models= COUNTV.models()
+        X_train_COUNTV,X_test_COUNTV , y_train ,y_test  = self.split_input()
         for name,model in models.items():
             if name == "DecisionTreeClassifier":
                 # Hyperparameter Optimization
@@ -263,18 +236,18 @@ class BagofWord:
                             'min_samples_leaf': [1, 5, 8, 10]
                             }
                 grid_obj = GridSearchCV(model, parameters)
-                grid_obj = grid_obj.fit(X_train_tfidf, y_train)
+                grid_obj = grid_obj.fit(X_train_COUNTV, y_train)
                 clf = grid_obj.best_estimator_
                 # Train the model using the training sets 
-                clf.fit(X_train_tfidf, y_train)
-                pre, rec, f1, loss, acc=TFIDF.loss(y_test, clf.predict(X_test_tfidf))
+                clf.fit(X_train_COUNTV, y_train)
+                pre, rec, f1, loss, acc=COUNTV.loss(y_test, clf.predict(X_test_COUNTV))
                 print('-------{h}-------'.format(h=name))
                 print(pre, rec, f1, loss, acc)
                 return pre, rec, f1, loss, acc
             
         # TODO Improv with good output
     def bagging_predictions(self,estimator):
-            X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
+            X_train_COUNTV,X_test_COUNTV , y_train ,y_test  = self.split_input()
             """
             I/P
             estimator: The base estimator from which the ensemble is grown.
@@ -287,17 +260,17 @@ class BagofWord:
                                     max_samples=1.0,
                                     bootstrap=True, # Samples are drawn with replacement
                                     n_jobs= n_jobs,
-                                    random_state=random_state).fit(X_train_tfidf, y_train)
+                                    random_state=random_state).fit(X_train_COUNTV, y_train)
 
-            br_y_pred = regr.predict(X_test_tfidf)
+            br_y_pred = regr.predict(X_test_COUNTV)
 
             rmse_val = mean_squared_error(y_test, br_y_pred, squared= False) # squared= False > returns Root Mean Square Error   
 
             print(f'RMSE for base estimator {regr.base_estimator_} = {rmse_val}\n')
             ### 
-            instance = BagofWord("df_contact","jumia_reviews_df_multi_page")
+            instance = COUNTV("df_contact","jumia_reviews_df_multi_page")
             # #data = instance.read_data()
-            # X_train_tfidf,X_test_tfidf , y_train ,y_test  = instance.split_input()
+            # X_train_COUNTV,X_test_COUNTV , y_train ,y_test  = instance.split_input()
 
 
             # predictions = np.column_stack((instance.bagging_predictions(DecisionTreeClassifier()),
@@ -322,11 +295,12 @@ class BagofWord:
     
 ####### Test Data
    
-#instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
+instance = COUNTV("df_contact","jumia_reviews_df_multi_page")
 # # #data = instance.read_data()
-#df = instance.data_analysis_report()
-#df = instance.create_sentiment_var()
-#df = instance.word_map()
-# print(df)
+# df = instance.data_analysis_report()
+# df = instance.create_sentiment_var()
+# df = instance.word_map()
+df1= instance.train_model()
+print(df1)
 
 

@@ -173,7 +173,7 @@ class TFIDF:
         plt.savefig(os.path.join(Path(__file__).parent.parent, "output","wordmap", f'{self.product_name}_combined_wordclouds.png'))
         return "Graphic saved in output folder"   
     
-    def split_input(self):
+    def split_input(self): ############# Start of the new changing
         df, _ , _ = self.create_sentiment_var()
         # Split the data into training and testing sets
         X_train, X_test, y_train, y_test = train_test_split(df['review_text'], df['sentiment'], test_size=0.2, random_state=42)
