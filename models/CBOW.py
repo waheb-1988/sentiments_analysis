@@ -41,10 +41,27 @@ from nltk.corpus import stopwords
 from wordcloud import WordCloud
 from sklearn.ensemble import BaggingRegressor
 from sklearn.metrics import mean_squared_error
+import numpy as np
+import pandas as pd
+from tensorflow.keras.preprocessing.text import Tokenizer
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+
+import nltk
+import string
+from nltk.tokenize import word_tokenize
+import re
+from nltk.corpus import stopwords
+from nltk.stem.wordnet import WordNetLemmatizer
+
+from gensim.models import Word2Vec
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
 
 n_jobs = -1 # This parameter conrols the parallel processing. -1 means using all processors.
 random_state = 42 # This parameter controls the randomness of the data. Using some int value to get same results everytime this code is run.
-class TFIDF:
+class CBOW:
     def __init__(self, file_name : str, product_name: str):
         self.file_name = file_name
         self.product_name= product_name
@@ -58,15 +75,23 @@ class TFIDF:
         df_product = df[df['product']==self.product_name].head(1000)
         print("The total number of row in the product {nm} is {nb}".format(nb=df_product.shape[0],nm=self.product_name))
         return df_product
-    
+    @staticmethod
+    def deEmojify(text):
+        regrex_pattern = re.compile(pattern = "["
+        u"\U0001F600-\U0001F64F"  # emoticons
+        u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+        u"\U0001F680-\U0001F6FF"  # transport & map symbols
+        u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                           "]+", flags = re.UNICODE)
+        return regrex_pattern.sub(r'',text)
+
     @staticmethod
     def preprocess_text(review_text):
         # Convert text to lowercase
         text = review_text.lower()
-
         # Remove punctuation
         text = text.translate(str.maketrans('', '', string.punctuation))
-
+        
         # Tokenize the text
         tokens = word_tokenize(text)
 
@@ -83,11 +108,13 @@ class TFIDF:
     
     def process_select_product(self):
         df = self.select_product()
-        df['review_cleaning'] = df['review_text'].astype(str).apply(TFIDF.preprocess_text)
+        df['review_cleaning'] = df['review_text'].astype(str).apply(CBOW.preprocess_text)
+        #df['review_cleaning'] = df['review_cleaning'].astype(str).apply(CBOW.deEmojify)
         return df
     
     def data_analysis_report(self):
         df = self.process_select_product()
+        
         # Calculate count and percentage of each rating
         rating_counts = df['rating'].value_counts().sort_index()
         rating_percentages = (rating_counts / len(df)) * 100
@@ -177,14 +204,20 @@ class TFIDF:
         df, _ , _ = self.create_sentiment_var()
         # Split the data into training and testing sets
         X_train, X_test, y_train, y_test = train_test_split(df['review_text'], df['sentiment'], test_size=0.2, random_state=42)
-        # Create a TF-IDF vectorizer
-        vectorizer = TfidfVectorizer(max_features=5000)
-        # Fit the vectorizer to the training data
-        vectorizer.fit(X_train)
+        # Create a 
+        model = Word2Vec(sentences=X_train, vector_size=50, window=5, min_count=1, workers=4)
+        # Create a mapping from words to their corresponding vector
+        word_vectors = {word: model.wv.key_to_index[word] for word in model.wv.key_to_index}
+        # Filter out the reviews that contain words not in the vocabulary
+        X_train_filtered = [review for review in X_train if all(word in word_vectors for word in review)]
+        X_test_filtered = [review for review in X_test if all(word in word_vectors for word in review)]
+
+        # Convert the reviews in the training and testing sets to vectors
+        X_train_vectors = [[word_vectors[word] for word in review] for review in X_train]
+        X_test_vectors = [[word_vectors[word] for word in review] for review in X_test]
         # Transform the training and testing data into TF-IDF vectors
-        X_train_tfidf = vectorizer.transform(X_train).toarray()
-        X_test_tfidf = vectorizer.transform(X_test).toarray()
-        return X_train_tfidf,X_test_tfidf , y_train ,y_test 
+       
+        return  X_train_vectors ,X_test_vectors ,y_train ,y_test
     @staticmethod
     def models():
         # Step 5− Training the Model
@@ -207,10 +240,10 @@ class TFIDF:
         
         results = []
         X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
-        models= TFIDF.models()
+        models= CBOW.models()
         for name, model in models.items():
             model.fit(X_train_tfidf,y_train )
-            pre, rec, f1, loss, acc=TFIDF.loss(y_test, model.predict(X_test_tfidf))
+            pre, rec, f1, loss, acc=CBOW.loss(y_test, model.predict(X_test_tfidf))
             #print('-------{h}-------'.format(h=name))
             #print(pre, rec, f1, loss, acc)
             results.append([name, pre, rec, f1, loss, acc])
@@ -221,7 +254,7 @@ class TFIDF:
     
     # TODO Improv with good output
     def hyper_tun(self):
-        models= TFIDF.models()
+        models= CBOW.models()
         X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
        
         results = []
@@ -238,7 +271,7 @@ class TFIDF:
                 clf = grid_obj.best_estimator_
             
                 clf.fit(X_train_tfidf, y_train)
-                pre, rec, f1, loss, acc = TFIDF.loss(y_test, clf.predict(X_test_tfidf))
+                pre, rec, f1, loss, acc = CBOW.loss(y_test, clf.predict(X_test_tfidf))
                 results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
                 print(results)
             elif name == "RandomForestClassifier":
@@ -250,7 +283,7 @@ class TFIDF:
                 grid_obj = grid_obj.fit(X_train_tfidf, y_train)
                 clf = grid_obj.best_estimator_
                 clf.fit(X_train_tfidf, y_train)
-                pre, rec, f1, loss, acc = TFIDF.loss(y_test, clf.predict(X_test_tfidf))
+                pre, rec, f1, loss, acc = CBOW.loss(y_test, clf.predict(X_test_tfidf))
                 results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
             
 
@@ -278,7 +311,7 @@ class TFIDF:
 
             print(f'RMSE for base estimator {regr.base_estimator_} = {rmse_val}\n')
             ### 
-            instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
+            instance = CBOW("df_contact","jumia_reviews_df_multi_page")
             # #data = instance.read_data()
             # X_train_tfidf,X_test_tfidf , y_train ,y_test  = instance.split_input()
 
@@ -305,12 +338,12 @@ class TFIDF:
     
 ####### Test Data
    
-instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
+instance = CBOW("df_contact","jumia_reviews_df_multi_page")
 # # #data = instance.read_data()
 # df = instance.data_analysis_report()
 # df = instance.create_sentiment_var()
 # df = instance.word_map()
-df = instance.hyper_tun()
+df = instance.train_model()
 print(df)
 
 
