@@ -41,6 +41,7 @@ from nltk.corpus import stopwords
 from wordcloud import WordCloud
 from sklearn.ensemble import BaggingRegressor
 from sklearn.metrics import mean_squared_error
+from sklearn.ensemble import AdaBoostClassifier
 
 n_jobs = -1 # This parameter conrols the parallel processing. -1 means using all processors.
 random_state = 42 # This parameter controls the randomness of the data. Using some int value to get same results everytime this code is run.
@@ -189,7 +190,10 @@ class TFIDF:
     def models():
         # Step 5− Training the Model
         models = {'LogisticRegression': LogisticRegression(), 'KNeighborsClassifier':KNeighborsClassifier(),   
-              'DecisionTreeClassifier' : DecisionTreeClassifier(),'RandomForestClassifier':RandomForestClassifier(),"XGBClassifier":XGBClassifier(),"CatBoostClassifier":CatBoostClassifier()
+              'DecisionTreeClassifier' : DecisionTreeClassifier(),'RandomForestClassifier':RandomForestClassifier(),
+              'AdaBoostClassifier': AdaBoostClassifier(),
+              'XGBClassifier': XGBClassifier(),
+              'CatBoostClassifier': CatBoostClassifier()
         }
         return models
     
@@ -223,9 +227,7 @@ class TFIDF:
     def hyper_tun(self):
         models= TFIDF.models()
         X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
-       
         results = []
-        par=[]
         for name, model in models.items():
             if name == "DecisionTreeClassifier": ### Change name
                 parameters1 = {'max_features': ['log2', 'sqrt', 'auto'], 
@@ -252,7 +254,64 @@ class TFIDF:
                 clf.fit(X_train_tfidf, y_train)
                 pre, rec, f1, loss, acc = TFIDF.loss(y_test, clf.predict(X_test_tfidf))
                 results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
-            
+            elif name == "AdaBoostClassifier":
+                parameters3 = {'n_estimators': [50, 100, 200],
+                          'learning_rate': [0.1, 1, 10]}
+                grid_obj = GridSearchCV(model, parameters3, cv=5, n_jobs=-1)
+                grid_obj = grid_obj.fit(X_train_tfidf, y_train)
+                clf = grid_obj.best_estimator_
+                clf.fit(X_train_tfidf, y_train)
+                pre, rec, f1, loss, acc = TFIDF.loss(y_test, clf.predict(X_test_tfidf))
+                results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
+ 
+            elif name == "CatBoostClassifier":
+                parameters4 = {'iterations': [50, 100, 200],
+                          'learning_rate': [0.01, 0.1, 1]}
+                grid_obj = GridSearchCV(model, parameters4, cv=5, n_jobs=-1)
+                grid_obj = grid_obj.fit(X_train_tfidf, y_train)
+                clf = grid_obj.best_estimator_
+
+                clf.fit(X_train_tfidf, y_train)
+                pre, rec, f1, loss, acc = TFIDF.loss(y_test, clf.predict(X_test_tfidf))
+                results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
+
+            elif name == "XGBoostClassifier":
+                parameters5 = {'n_estimators': [50, 100, 200],
+                          'learning_rate': [0.01, 0.1, 1],
+                          'max_depth': [3, 6, 9],
+                          'objective': ['binary:logistic']}
+                grid_obj = GridSearchCV(model, parameters5, cv=5, n_jobs=-1)
+                grid_obj = grid_obj.fit(X_train_tfidf, y_train)
+                clf = grid_obj.best_estimator_
+
+                clf.fit(X_train_tfidf, y_train)
+                pre, rec, f1, loss, acc = TFIDF.loss(y_test, clf.predict(X_test_tfidf))
+                results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
+
+            elif name == "SVM":
+                parameters6 = {'kernel': ['linear', 'rbf'],
+                          'C': [0.1, 1, 10]}
+                grid_obj = GridSearchCV(model, parameters6, cv=5, n_jobs=-1)
+                grid_obj = grid_obj.fit(X_train_tfidf, y_train)
+                clf = grid_obj.best_estimator_
+
+                clf.fit(X_train_tfidf, y_train)
+                pre, rec, f1, loss, acc = TFIDF.loss(y_test, clf.predict(X_test_tfidf))
+                results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
+
+            elif name == "KNeighborsClassifier":
+                parameters7 = {'n_neighbors': [2, 3, 5, 10],
+                          'weights': ['uniform', 'distance'],
+                          'algorithm': ['auto', 'ball_tree', 'kd_tree']}
+                grid_obj = GridSearchCV(model, parameters7, cv=5, n_jobs=-1)
+                grid_obj = grid_obj.fit(X_train_tfidf, y_train)
+                clf = grid_obj.best_estimator_
+
+                clf.fit(X_train_tfidf, y_train)
+                pre, rec, f1, loss, acc = TFIDF.loss(y_test, clf.predict(X_test_tfidf))
+                results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
+      
+        return pd.DataFrame(results)
 
         return pd.DataFrame(results)
         # TODO Improv with good output

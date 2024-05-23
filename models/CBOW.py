@@ -77,13 +77,25 @@ class CBOW:
         return df_product
     @staticmethod
     def deEmojify(text):
-        regrex_pattern = re.compile(pattern = "["
+        regex_pattern = re.compile(pattern = "["
         u"\U0001F600-\U0001F64F"  # emoticons
         u"\U0001F300-\U0001F5FF"  # symbols & pictographs
         u"\U0001F680-\U0001F6FF"  # transport & map symbols
         u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
-                           "]+", flags = re.UNICODE)
-        return regrex_pattern.sub(r'',text)
+        u"\U00002500-\U00002BEF"  # chinese char
+        u"\U00002702-\U000027B0"  # dingbats
+        u"\U00002702-\U000027B0"  # dingbats
+        u"\U0001F926-\U0001F937"  # supplemental symbols and pictographs
+        u"\U00010000-\U0010FFFF"  # supplementary private use area A
+        u"\U0001F1F2-\U0001F1F4"  # flags
+        u"\U0001F1E6-\U0001F1FF"  # flags
+        u"\U0001F600-\U0001F64F"  # emoticons
+        u"\U0001F681-\U0001F6C5"  # transport and map symbols
+        u"\U0001F30D-\U0001F567"  # additional symbols
+        u"\u263A"                 # ☺ character
+        u"0-9"                    # digits
+        "]+", flags = re.UNICODE)
+        return regex_pattern.sub(r'', text)
 
     @staticmethod
     def preprocess_text(review_text):
@@ -108,8 +120,8 @@ class CBOW:
     
     def process_select_product(self):
         df = self.select_product()
-        df['review_cleaning'] = df['review_text'].astype(str).apply(CBOW.preprocess_text)
-        #df['review_cleaning'] = df['review_cleaning'].astype(str).apply(CBOW.deEmojify)
+        df['review_cleaning1'] = df['review_text'].astype(str).apply(CBOW.preprocess_text)
+        df['review_cleaning'] = df['review_cleaning1'].astype(str).apply(CBOW.deEmojify)
         return df
     
     def data_analysis_report(self):
@@ -203,7 +215,7 @@ class CBOW:
     def split_input(self): ############# Start of the new changing
         df, _ , _ = self.create_sentiment_var()
         # Split the data into training and testing sets
-        X_train, X_test, y_train, y_test = train_test_split(df['review_text'], df['sentiment'], test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(df['review_cleaning'], df['sentiment'], test_size=0.2, random_state=42)
         # Create a 
         model = Word2Vec(sentences=X_train, vector_size=50, window=5, min_count=1, workers=4)
         # Create a mapping from words to their corresponding vector
@@ -240,8 +252,12 @@ class CBOW:
         
         results = []
         X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
+        print("here")
+        print(len(X_train_tfidf))
+        print(len(y_train))
         models= CBOW.models()
         for name, model in models.items():
+            
             model.fit(X_train_tfidf,y_train )
             pre, rec, f1, loss, acc=CBOW.loss(y_test, model.predict(X_test_tfidf))
             #print('-------{h}-------'.format(h=name))
