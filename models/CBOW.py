@@ -43,21 +43,24 @@ from sklearn.ensemble import BaggingRegressor
 from sklearn.metrics import mean_squared_error
 import numpy as np
 import pandas as pd
-from tensorflow.keras.preprocessing.text import Tokenizer
+import tensorflow as tf
+
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-
+import emoji
 import nltk
 import string
 from nltk.tokenize import word_tokenize
 import re
 from nltk.corpus import stopwords
 from nltk.stem.wordnet import WordNetLemmatizer
-
 from gensim.models import Word2Vec
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
+
+
+
 
 n_jobs = -1 # This parameter conrols the parallel processing. -1 means using all processors.
 random_state = 42 # This parameter controls the randomness of the data. Using some int value to get same results everytime this code is run.
@@ -77,25 +80,13 @@ class CBOW:
         return df_product
     @staticmethod
     def deEmojify(text):
-        regex_pattern = re.compile(pattern = "["
+        regrex_pattern = re.compile(pattern = "["
         u"\U0001F600-\U0001F64F"  # emoticons
         u"\U0001F300-\U0001F5FF"  # symbols & pictographs
         u"\U0001F680-\U0001F6FF"  # transport & map symbols
         u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
-        u"\U00002500-\U00002BEF"  # chinese char
-        u"\U00002702-\U000027B0"  # dingbats
-        u"\U00002702-\U000027B0"  # dingbats
-        u"\U0001F926-\U0001F937"  # supplemental symbols and pictographs
-        u"\U00010000-\U0010FFFF"  # supplementary private use area A
-        u"\U0001F1F2-\U0001F1F4"  # flags
-        u"\U0001F1E6-\U0001F1FF"  # flags
-        u"\U0001F600-\U0001F64F"  # emoticons
-        u"\U0001F681-\U0001F6C5"  # transport and map symbols
-        u"\U0001F30D-\U0001F567"  # additional symbols
-        u"\u263A"                 # ☺ character
-        u"0-9"                    # digits
-        "]+", flags = re.UNICODE)
-        return regex_pattern.sub(r'', text)
+                           "]+", flags = re.UNICODE)
+        return regrex_pattern.sub(r'',text)
 
     @staticmethod
     def preprocess_text(review_text):
@@ -118,10 +109,13 @@ class CBOW:
         # Return preprocessed text as a string
         return ' '.join(stemmed_tokens)
     
+    def remove_emojis(text):
+        return emoji.get_emoji_regexp().sub(u'', text)
+    
     def process_select_product(self):
         df = self.select_product()
-        df['review_cleaning1'] = df['review_text'].astype(str).apply(CBOW.preprocess_text)
-        df['review_cleaning'] = df['review_cleaning1'].astype(str).apply(CBOW.deEmojify)
+        df['review_cleaning'] = df['review_text'].astype(str).apply(CBOW.preprocess_text)
+        #df['review_cleaning'] = df['review_cleaning'].astype(str).apply(CBOW.deEmojify)
         return df
     
     def data_analysis_report(self):
@@ -211,25 +205,33 @@ class CBOW:
         plt.tight_layout()
         plt.savefig(os.path.join(Path(__file__).parent.parent, "output","wordmap", f'{self.product_name}_combined_wordclouds.png'))
         return "Graphic saved in output folder"   
+
     
-    def split_input(self): ############# Start of the new changing
-        df, _ , _ = self.create_sentiment_var()
+    def split_input(self):
+        df, _, _ = self.create_sentiment_var()
         # Split the data into training and testing sets
-        X_train, X_test, y_train, y_test = train_test_split(df['review_cleaning'], df['sentiment'], test_size=0.2, random_state=42)
-        # Create a 
-        model = Word2Vec(sentences=X_train, vector_size=50, window=5, min_count=1, workers=4)
+        X_train, X_test, y_train, y_test = train_test_split(df['review_text'], df['sentiment'], test_size=0.2, random_state=42)
+
+        # Create a Word2Vec model using CBOW
+        model = Word2Vec(sentences=[review.split() for review in X_train], vector_size=50, window=5, min_count=1, workers=4, sg=0)
+
         # Create a mapping from words to their corresponding vector
-        word_vectors = {word: model.wv.key_to_index[word] for word in model.wv.key_to_index}
+        word_vectors = {word: model.wv.get_vector(word) for word in model.wv.key_to_index}
+
         # Filter out the reviews that contain words not in the vocabulary
-        X_train_filtered = [review for review in X_train if all(word in word_vectors for word in review)]
-        X_test_filtered = [review for review in X_test if all(word in word_vectors for word in review)]
+        X_train_filtered = [' '.join([word for word in review.split() if word in word_vectors]) for review in X_train]
+        X_test_filtered = [' '.join([word for word in review.split() if word in word_vectors]) for review in X_test]
 
         # Convert the reviews in the training and testing sets to vectors
-        X_train_vectors = [[word_vectors[word] for word in review] for review in X_train]
-        X_test_vectors = [[word_vectors[word] for word in review] for review in X_test]
+        X_train_vectors = [[word_vectors[word] for word in review.split() if word in word_vectors] for review in X_train_filtered]
+        X_test_vectors = [[word_vectors[word] for word in review.split() if word in word_vectors] for review in X_test_filtered]
+
         # Transform the training and testing data into TF-IDF vectors
-       
-        return  X_train_vectors ,X_test_vectors ,y_train ,y_test
+        vectorizer = TfidfVectorizer()
+        X_train_vectors = vectorizer.fit_transform([' '.join([str(x) for x in review]) for review in X_train_vectors])
+        X_test_vectors = vectorizer.transform([' '.join([str(x) for x in review]) for review in X_test_vectors])
+
+        return X_train_vectors, X_test_vectors, y_train, y_test
     @staticmethod
     def models():
         # Step 5− Training the Model
@@ -252,12 +254,8 @@ class CBOW:
         
         results = []
         X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
-        print("here")
-        print(len(X_train_tfidf))
-        print(len(y_train))
         models= CBOW.models()
         for name, model in models.items():
-            
             model.fit(X_train_tfidf,y_train )
             pre, rec, f1, loss, acc=CBOW.loss(y_test, model.predict(X_test_tfidf))
             #print('-------{h}-------'.format(h=name))
@@ -359,7 +357,12 @@ instance = CBOW("df_contact","jumia_reviews_df_multi_page")
 # df = instance.data_analysis_report()
 # df = instance.create_sentiment_var()
 # df = instance.word_map()
+
+
+
+data = instance.read_data()
+df = instance.data_analysis_report()
+df = instance.create_sentiment_var()
+df = instance.word_map()
 df = instance.train_model()
 print(df)
-
-
