@@ -42,9 +42,38 @@ from wordcloud import WordCloud
 from sklearn.ensemble import BaggingRegressor
 from sklearn.metrics import mean_squared_error
 from sklearn.ensemble import AdaBoostClassifier
+from imblearn.over_sampling import BorderlineSMOTE, SMOTE, ADASYN, SMOTENC, RandomOverSampler
+from sklearn.ensemble import BaggingClassifier
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+plt.style.use('ggplot')
+from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import classification_report, confusion_matrix
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+from sklearn.model_selection import train_test_split
+
+import matplotlib.cm as cm
+from matplotlib import rcParams
+from collections import Counter
+from nltk.tokenize import RegexpTokenizer
+import re
+import string
+from tensorflow.keras.models import Sequential, Model # Import Model from tensorflow.keras.models
+from tensorflow.keras.layers import Dense, Embedding, Flatten, Dropout, Conv1D, GlobalMaxPooling1D, Input
+from tensorflow.keras.layers import LSTM, Activation, Dense, Dropout, Input, Embedding
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing import sequence
+
 
 n_jobs = -1 # This parameter conrols the parallel processing. -1 means using all processors.
 random_state = 42 # This parameter controls the randomness of the data. Using some int value to get same results everytime this code is run.
+max_len = 500
 class TFIDF:
     def __init__(self, file_name : str, product_name: str):
         self.file_name = file_name
@@ -56,7 +85,7 @@ class TFIDF:
     
     def select_product(self):
         df = self.read_data()
-        df_product = df[df['product']==self.product_name].head(1000)
+        df_product = df[df['product']==self.product_name].head(2000)
         print("The total number of row in the product {nm} is {nb}".format(nb=df_product.shape[0],nm=self.product_name))
         return df_product
     
@@ -116,9 +145,12 @@ class TFIDF:
         
     def create_sentiment_var(self):
         df = self.process_select_product() 
-        #### Removing the neutral reviews
-        df_sentiment = df[df['rating'] != 3]
-        df_sentiment['sentiment'] = df_sentiment['rating'].apply(lambda rating : +1 if rating > 3 else 0)
+        # #### Removing the neutral reviews
+        # df_sentiment = df[df['rating'] != 3]
+        # df_sentiment['sentiment'] = df_sentiment['rating'].apply(lambda rating : +1 if rating > 3 else -1)
+        
+        df_sentiment = df[df['rating'] != 0]
+        df_sentiment['sentiment'] = df_sentiment['rating']
         
         # Calculate count and percentage of each rating
         sentiment_counts = df_sentiment['sentiment'].value_counts().sort_index()
@@ -174,10 +206,13 @@ class TFIDF:
         plt.savefig(os.path.join(Path(__file__).parent.parent, "output","wordmap", f'{self.product_name}_combined_wordclouds.png'))
         return "Graphic saved in output folder"   
     
+
+    
+        
     def split_input(self): ############# Start of the new changing
         df, _ , _ = self.create_sentiment_var()
         # Split the data into training and testing sets
-        X_train, X_test, y_train, y_test = train_test_split(df['review_text'], df['sentiment'], test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(df['review_cleaning'], df['sentiment'], test_size=0.2, random_state=42)
         # Create a TF-IDF vectorizer
         vectorizer = TfidfVectorizer(max_features=5000)
         # Fit the vectorizer to the training data
@@ -186,6 +221,15 @@ class TFIDF:
         X_train_tfidf = vectorizer.transform(X_train).toarray()
         X_test_tfidf = vectorizer.transform(X_test).toarray()
         return X_train_tfidf,X_test_tfidf , y_train ,y_test 
+    
+    def solve_unbalance(self):
+        X_train_tfidf,X_test_tfidf , y_train ,y_test = self.split_input()
+        sm = ADASYN(random_state=777)
+        X_res, y_res = sm.fit_resample(X_train_tfidf, y_train)
+        return X_res, X_test_tfidf, y_res ,y_test
+    
+    
+    
     @staticmethod
     def models():
         # Step 5− Training the Model
@@ -206,22 +250,30 @@ class TFIDF:
         acc = round(accuracy_score(y_true, y_pred),4)
 
         return pre, rec, f1, loss, acc
+    
 
-    def train_model(self):
-        
+
+    def train_model(self):    
         results = []
+        results1 = []
         X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
+        X_train_tfidf1,X_test_tfidf1 , y_train1 ,y_test1  = self.solve_unbalance()
         models= TFIDF.models()
         for name, model in models.items():
-            model.fit(X_train_tfidf,y_train )
-            pre, rec, f1, loss, acc=TFIDF.loss(y_test, model.predict(X_test_tfidf))
+            m1=model.fit(X_train_tfidf,y_train )
+            m2=model.fit(X_train_tfidf1,y_train1 )
+            pre, rec, f1, loss, acc=TFIDF.loss(y_test, m1.predict(X_test_tfidf))
+            pre1, rec1, f11, loss1, acc1=TFIDF.loss(y_test1, m2.predict(X_test_tfidf1))
             #print('-------{h}-------'.format(h=name))
             #print(pre, rec, f1, loss, acc)
             results.append([name, pre, rec, f1, loss, acc])
+            results1.append([name, pre1, rec1, f11, loss1, acc1])
         df = pd.DataFrame(results, columns=['NAME', 'pre', 'rec', 'f1', 'loss', 'acc'])
+        df1 = pd.DataFrame(results1, columns=['NAME', 'pre', 'rec', 'f1', 'loss', 'acc'])
         #df.set_index('NAME', inplace=True)    
         df.sort_values(by=['acc'], ascending=False, inplace=True) 
-        return df
+        df1.sort_values(by=['acc'], ascending=False, inplace=True) 
+        return df, df1
     
     # TODO Improv with good output
     def hyper_tun(self):
@@ -313,63 +365,141 @@ class TFIDF:
       
         return pd.DataFrame(results)
 
-        return pd.DataFrame(results)
+        
         # TODO Improv with good output
-    def bagging_predictions(self,estimator):
-            X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
-            """
-            I/P
-            estimator: The base estimator from which the ensemble is grown.
-            O/P
-            br_y_pred: Predictions on test data for the base estimator.
+    # def bagging_predictions(self):
+    #         result=[]
+    #         X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
+    #         models= TFIDF.models()
+    #         for name, model in models.items():
+
+    #             bag_model = BaggingClassifier(
+    #                     base_estimator=model,
+    #                     n_estimators=100,
+    #                     max_samples=0.8,
+    #                     oob_score=True,
+    #                     random_state=0
+    #                 )
+    #             bag_model.fit(X_train_tfidf, y_train)
+    #             bag_model.oob_score_
+    #             score = bag_model.score(X_test_tfidf, y_test)
+    #             result.append({'Model': name, 'score': score})
+    #             df=pd.DataFrame(result)
+    #             df.sort_values(by=['score'], ascending=False, inplace=True) 
+    #         return df
             
-            """
-            regr = BaggingRegressor(base_estimator=estimator,
-                                    n_estimators=10,
-                                    max_samples=1.0,
-                                    bootstrap=True, # Samples are drawn with replacement
-                                    n_jobs= n_jobs,
-                                    random_state=random_state).fit(X_train_tfidf, y_train)
-
-            br_y_pred = regr.predict(X_test_tfidf)
-
-            rmse_val = mean_squared_error(y_test, br_y_pred, squared= False) # squared= False > returns Root Mean Square Error   
-
-            print(f'RMSE for base estimator {regr.base_estimator_} = {rmse_val}\n')
-            ### 
-            instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
-            # #data = instance.read_data()
-            # X_train_tfidf,X_test_tfidf , y_train ,y_test  = instance.split_input()
-
-
-            # predictions = np.column_stack((instance.bagging_predictions(DecisionTreeClassifier()),
-            #                               instance.bagging_predictions(KNeighborsClassifier()),
-            #                               instance.bagging_predictions(LogisticRegression()),
-            #                               instance.bagging_predictions(RandomForestClassifier())))
-            # print(f"Bagged predictions shape: {predictions.shape}")
-            # y_pred = np.mean(predictions, axis=1)
-
-            # print("Aggregated predictions (y_pred) shape", y_pred.shape)
-
-            # rmse_val = mean_squared_error(y_test, y_pred, squared= False) # squared= False > returns Root Mean Square Error  
-            # models_scores = [] 
-            # models_scores.append(['Bagging', rmse_val])
-
-            # print(f'\nBagging RMSE= {rmse_val}')
-            return br_y_pred
-            
-                
-                
-            
+               
     
+    # @staticmethod
+    # def ann_model(max_len):
+
+    #     # Define the input layer
+    #     inputs = Input(name='inputs', shape=[max_len])
+
+    #     # Add an embedding layer
+    #     layer = Embedding(input_dim=2000, output_dim=50, input_length=max_len)(inputs)
+
+    #     # Flatten the embedding output to feed it into dense layers
+    #     layer = Flatten()(layer)
+
+    #     # Add a dense layer with ReLU activation
+    #     layer = Dense(256, activation='relu', name='FC1')(layer)
+
+    #     # Apply dropout
+    #     layer = Dropout(0.5)(layer)
+
+    #     # Add another dense layer with ReLU activation
+    #     layer = Dense(128, activation='relu', name='FC2')(layer)
+
+    #     # Apply dropout again
+    #     layer = Dropout(0.5)(layer)
+
+    #     # Add the output layer with sigmoid activation
+    #     layer = Dense(1, activation='sigmoid', name='output')(layer)
+
+    #     # Define the model
+    #     model = Model(inputs=inputs, outputs=layer)
+
+    #     # Compile the model
+    #     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+    #     return model  
+              
+    # @staticmethod
+    # def models_dl():
+    #     # Step 5− Training the Model
+    #     models = {'ANN': TFIDF.ann_model(max_len)
+    #     }
+    #     return models             
+    
+    # def train_dl_model(self):    
+    #     results = []
+    #     df, _ , _ = self.create_sentiment_var()
+    #     X=df['review_cleaning'].copy()
+    #     y=df['sentiment'].copy()
+    #     print("here")
+    #     print(y.unique())
+    #     max_len = 100
+    #     tok = Tokenizer(num_words=2000)
+    #     tok.fit_on_texts(X)
+    #     sequences = tok.texts_to_sequences(X)
+    #     sequences_matrix = sequence.pad_sequences(sequences)
+    #     X_train, X_test, Y_train, Y_test = train_test_split(sequences_matrix, y, test_size=0.3, random_state=2)
+    #     #X_train_tfidf1,X_test_tfidf1 , y_train1 ,y_test1  = self.solve_unbalance()
+    #     # Define the input layer
+    #     # Define the input layer
+    #     inputs = Input(name='inputs', shape=[max_len])
+
+    # # Add an embedding layer
+    #     layer = Embedding(input_dim=2000, output_dim=50)(inputs)
+
+    #     # Flatten the embedding output to feed it into dense layers
+    #     layer = Flatten()(layer)
+
+    #     # Add a dense layer with ReLU activation
+    #     layer = Dense(256, activation='relu', name='FC1')(layer)
+
+    #     # Apply dropout
+    #     layer = Dropout(0.5)(layer)
+
+    #     # Add another dense layer with ReLU activation
+    #     layer = Dense(128, activation='relu', name='FC2')(layer)
+
+    #     # Apply dropout again
+    #     layer = Dropout(0.5)(layer)
+
+    #     # Add the output layer with sigmoid activation
+    #     layer = Dense(1, activation='sigmoid', name='output')(layer)
+
+    #     # Define the model
+    #     model = Model(inputs=inputs, outputs=layer)
+
+    #     # Compile the model
+    #     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    #     historyANN=model.fit(X_train,Y_train,batch_size=32,epochs=10, validation_split=0.12)
+    #         #m2=model.fit(X_train_tfidf1,y_train1 )
+    #     pre, rec, f1, loss, acc=TFIDF.loss(Y_test, model.predict(X_test))
+    #         #pre1, rec1, f11, loss1, acc1=TFIDF.loss(y_test1, m2.predict(X_test_tfidf1))
+    #         #print('-------{h}-------'.format(h=name))
+    #         #print(pre, rec, f1, loss, acc)
+    #     name ='ANN'
+    #     results.append([name, pre, rec, f1, loss, acc])
+    #         #results1.append([name, pre1, rec1, f11, loss1, acc1])
+    #     df = pd.DataFrame(results, columns=['NAME', 'pre', 'rec', 'f1', 'loss', 'acc'])
+    #     #df1 = pd.DataFrame(results1, columns=['NAME', 'pre', 'rec', 'f1', 'loss', 'acc'])
+    #     #df.set_index('NAME', inplace=True)    
+    #     df.sort_values(by=['acc'], ascending=False, inplace=True) 
+    #     #df1.sort_values(by=['acc'], ascending=False, inplace=True) 
+    #     return df
 ####### Test Data
    
-instance = TFIDF("df_contact","jumia_reviews_df_multi_page")
+instance = TFIDF("df_contact","Twitter_Data naive bayes")
 # # #data = instance.read_data()
 # df = instance.data_analysis_report()
 # df = instance.create_sentiment_var()
 # df = instance.word_map()
-df = instance.hyper_tun()
+df,df2 = instance.train_model()
+
 print(df)
-
-
+print("######################################")
+print(df)
