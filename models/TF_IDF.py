@@ -55,7 +55,7 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 from sklearn.model_selection import train_test_split
-
+from imblearn.combine import SMOTEENN
 import matplotlib.cm as cm
 from matplotlib import rcParams
 from collections import Counter
@@ -85,7 +85,7 @@ class TFIDF:
     
     def select_product(self):
         df = self.read_data()
-        df_product = df[df['product']==self.product_name].head(2000)
+        df_product = df[df['product']==self.product_name]# .head(2000)
         print("The total number of row in the product {nm} is {nb}".format(nb=df_product.shape[0],nm=self.product_name))
         return df_product
     
@@ -145,12 +145,13 @@ class TFIDF:
         
     def create_sentiment_var(self):
         df = self.process_select_product() 
-        # #### Removing the neutral reviews
-        # df_sentiment = df[df['rating'] != 3]
-        # df_sentiment['sentiment'] = df_sentiment['rating'].apply(lambda rating : +1 if rating > 3 else -1)
         
-        df_sentiment = df[df['rating'] != 0]
-        df_sentiment['sentiment'] = df_sentiment['rating']
+        # #### Removing the neutral reviews
+        df_sentiment = df[df['rating'] != 3]
+        df_sentiment['sentiment'] = df_sentiment['rating'].apply(lambda rating : +1 if rating > 3 else -1)
+        
+        #df_sentiment = df[df['rating'] != 0]
+        #df_sentiment['sentiment'] = df_sentiment['rating']
         
         # Calculate count and percentage of each rating
         sentiment_counts = df_sentiment['sentiment'].value_counts().sort_index()
@@ -172,7 +173,7 @@ class TFIDF:
         # Title and legends
         plt.title("Distribution of sentiment of {pr}".format(pr=self.product_name))
         fig.tight_layout()
-        plt.savefig(os.path.join(Path(__file__).parent.parent,"output","sentiment",'sentiment_distribution_'+f'{self.product_name}_.png'))
+        plt.savefig(os.path.join(Path(__file__).parent.parent,"output","sentiment",'sentiment_distribution_'+self.product_name+'.png'))
         
         #Positive vs Negative reviews
         df_sentiment_droppedna = df_sentiment.dropna()  
@@ -224,7 +225,7 @@ class TFIDF:
     
     def solve_unbalance(self):
         X_train_tfidf,X_test_tfidf , y_train ,y_test = self.split_input()
-        sm = ADASYN(random_state=777)
+        sm = SMOTEENN()
         X_res, y_res = sm.fit_resample(X_train_tfidf, y_train)
         return X_res, X_test_tfidf, y_res ,y_test
     
@@ -264,8 +265,9 @@ class TFIDF:
             m2=model.fit(X_train_tfidf1,y_train1 )
             pre, rec, f1, loss, acc=TFIDF.loss(y_test, m1.predict(X_test_tfidf))
             pre1, rec1, f11, loss1, acc1=TFIDF.loss(y_test1, m2.predict(X_test_tfidf1))
-            #print('-------{h}-------'.format(h=name))
-            #print(pre, rec, f1, loss, acc)
+            print('-------{h}-------'.format(h=name))
+            print(pre, rec, f1, loss, acc)
+            print(pre1, rec1, f11, loss1, acc1)
             results.append([name, pre, rec, f1, loss, acc])
             results1.append([name, pre1, rec1, f11, loss1, acc1])
         df = pd.DataFrame(results, columns=['NAME', 'pre', 'rec', 'f1', 'loss', 'acc'])
@@ -493,13 +495,13 @@ class TFIDF:
     #     return df
 ####### Test Data
    
-instance = TFIDF("df_contact","Twitter_Data naive bayes")
+instance = TFIDF("df_contact","Womens Clothing E-Commerce Reviews") # Twitter_Data naive bayes
 # # #data = instance.read_data()
-# df = instance.data_analysis_report()
+# df = instance.data_analysis_report() 
 # df = instance.create_sentiment_var()
 # df = instance.word_map()
-df,df2 = instance.train_model()
-
+# df = instance.create_sentiment_var()
+df,df1=instance.train_model()
 print(df)
-print("######################################")
-print(df)
+# print("######################################")
+print(df1)
