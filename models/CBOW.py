@@ -361,8 +361,8 @@ instance = CBOW("df_contact","jumia_reviews_df_multi_page")
 
 
 data = instance.read_data()
-df = instance.data_analysis_report()
-df = instance.create_sentiment_var()
-df = instance.word_map()
+# df = instance.data_analysis_report()
+# df = instance.create_sentiment_var()
+# df = instance.word_map()
 df = instance.train_model()
 print(df)
