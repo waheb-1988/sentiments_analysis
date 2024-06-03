@@ -102,7 +102,7 @@ class ANN:
 
     def select_product(self):
         df = self.read_data()
-        df_product = df[df['product']==self.product_name].head(2000)
+        df_product = df[df['product']==self.product_name].head(1000)
         print("The total number of row in the product {nm} is {nb}".format(nb=df_product.shape[0],nm=self.product_name))
         return df_product
 
@@ -284,7 +284,7 @@ class ANN:
         assert X_valid.shape[0] == y_valid.shape[0]
         assert X_train_rest.shape[0] == y_train_rest.shape[0]
         base_model = models.Sequential()
-        base_model.add(layers.Dense(64, activation='relu', input_shape=(10000,)))
+        base_model.add(layers.Dense(64, activation='relu', input_shape=(200,)))
         base_model.add(layers.Dense(64, activation='relu'))
         base_model.add(layers.Dense(1, activation='sigmoid'))
         base_model.summary()
@@ -299,7 +299,7 @@ class ANN:
         history = model.fit(X_train_rest
                         , y_train_rest
                         , epochs=20
-                        , batch_size=1000
+                        , batch_size=50
                         , validation_data=(X_valid, y_valid)
                         , verbose=0)
         
@@ -322,5 +322,5 @@ instance = ANN("df_contact","Womens Clothing E-Commerce Reviews") # Twitter_Data
 df = instance.deep_model()
 
 
-df1 = instance.eval_metric( 'loss')
-print(df1)
+# df1 = instance.eval_metric( 'loss')
+# print(df1)

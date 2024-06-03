@@ -221,7 +221,8 @@ class TFIDF:
         # Transform the training and testing data into TF-IDF vectors
         X_train_tfidf = vectorizer.transform(X_train).toarray()
         X_test_tfidf = vectorizer.transform(X_test).toarray()
-        return X_train_tfidf,X_test_tfidf , y_train ,y_test
+        return 
+   
 
     def solve_unbalance(self):
         X_train_tfidf,X_test_tfidf , y_train ,y_test = self.split_input()
@@ -508,6 +509,7 @@ class TFIDF:
 ####### Test Data
 
 instance = TFIDF("df_contact","Womens Clothing E-Commerce Reviews") # Twitter_Data naive bayes
+X_train_tfidf,X_test_tfidf , y_train ,y_test=instance.split_input()
 # # #data = instance.read_data()
 # df = instance.data_analysis_report()
 # df = instance.create_sentiment_var()
