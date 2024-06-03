@@ -85,7 +85,7 @@ class TFIDF:
 
     def select_product(self):
         df = self.read_data()
-        df_product = df[df['product']==self.product_name]# .head(2000)
+        df_product = df[df['product']==self.product_name].head(2000)
         print("The total number of row in the product {nm} is {nb}".format(nb=df_product.shape[0],nm=self.product_name))
         return df_product
 
@@ -221,7 +221,7 @@ class TFIDF:
         # Transform the training and testing data into TF-IDF vectors
         X_train_tfidf = vectorizer.transform(X_train).toarray()
         X_test_tfidf = vectorizer.transform(X_test).toarray()
-        return 
+        return   X_train_tfidf,X_test_tfidf , y_train ,y_test
    
 
     def solve_unbalance(self):
@@ -508,14 +508,14 @@ class TFIDF:
     #     return df
 ####### Test Data
 
-instance = TFIDF("df_contact","Womens Clothing E-Commerce Reviews") # Twitter_Data naive bayes
-X_train_tfidf,X_test_tfidf , y_train ,y_test=instance.split_input()
-# # #data = instance.read_data()
-# df = instance.data_analysis_report()
-# df = instance.create_sentiment_var()
-# df = instance.word_map()
-# df = instance.create_sentiment_var()
-df,df1=instance.all_train()
-print(df)
-# print("######################################")
-print(df1)
+# instance = TFIDF("df_contact","Womens Clothing E-Commerce Reviews") # Twitter_Data naive bayes
+# X_train_tfidf,X_test_tfidf , y_train ,y_test=instance.split_input()
+# # # #data = instance.read_data()
+# # df = instance.data_analysis_report()
+# # df = instance.create_sentiment_var()
+# # df = instance.word_map()
+# # df = instance.create_sentiment_var()
+# df,df1=instance.all_train()
+# print(df)
+# # print("######################################")
+# print(df1)
