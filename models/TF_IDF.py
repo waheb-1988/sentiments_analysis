@@ -120,6 +120,7 @@ class TFIDF:
         df = self.process_select_product()
         # Calculate count and percentage of each rating
         rating_counts = df['rating'].value_counts().sort_index()
+        
         rating_percentages = (rating_counts / len(df)) * 100
 
         # Create a bar chart
@@ -139,8 +140,8 @@ class TFIDF:
         plt.title("Distribution of Ratings of {pr}".format(pr=self.product_name))
         fig.tight_layout()
         #print(os.path.join(Path(__file__).parent.parent,"output",'ratings_distribution_'+self.product_name+'.png'))
-        plt.savefig(os.path.join(Path(__file__).parent.parent,"output","rating",'ratings_distribution_'+self.product_name+'.png'))
-
+        plt.savefig(os.path.join(Path(__file__).parent.parent,"output","rating",'ratings_distribution_'+self.product_name+'.png')) 
+       
         return df
 
     def create_sentiment_var(self):
@@ -380,142 +381,13 @@ class TFIDF:
 
         return pd.DataFrame(results)
 
-
-        # TODO Improv with good output
-    # def bagging_predictions(self):
-    #         result=[]
-    #         X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
-    #         models= TFIDF.models()
-    #         for name, model in models.items():
-
-    #             bag_model = BaggingClassifier(
-    #                     base_estimator=model,
-    #                     n_estimators=100,
-    #                     max_samples=0.8,
-    #                     oob_score=True,
-    #                     random_state=0
-    #                 )
-    #             bag_model.fit(X_train_tfidf, y_train)
-    #             bag_model.oob_score_
-    #             score = bag_model.score(X_test_tfidf, y_test)
-    #             result.append({'Model': name, 'score': score})
-    #             df=pd.DataFrame(result)
-    #             df.sort_values(by=['score'], ascending=False, inplace=True)
-    #         return df
-
-
-
-    # @staticmethod
-    # def ann_model(max_len):
-
-    #     # Define the input layer
-    #     inputs = Input(name='inputs', shape=[max_len])
-
-    #     # Add an embedding layer
-    #     layer = Embedding(input_dim=2000, output_dim=50, input_length=max_len)(inputs)
-
-    #     # Flatten the embedding output to feed it into dense layers
-    #     layer = Flatten()(layer)
-
-    #     # Add a dense layer with ReLU activation
-    #     layer = Dense(256, activation='relu', name='FC1')(layer)
-
-    #     # Apply dropout
-    #     layer = Dropout(0.5)(layer)
-
-    #     # Add another dense layer with ReLU activation
-    #     layer = Dense(128, activation='relu', name='FC2')(layer)
-
-    #     # Apply dropout again
-    #     layer = Dropout(0.5)(layer)
-
-    #     # Add the output layer with sigmoid activation
-    #     layer = Dense(1, activation='sigmoid', name='output')(layer)
-
-    #     # Define the model
-    #     model = Model(inputs=inputs, outputs=layer)
-
-    #     # Compile the model
-    #     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-
-    #     return model
-
-    # @staticmethod
-    # def models_dl():
-    #     # Step 5− Training the Model
-    #     models = {'ANN': TFIDF.ann_model(max_len)
-    #     }
-    #     return models
-
-    # def train_dl_model(self):
-    #     results = []
-    #     df, _ , _ = self.create_sentiment_var()
-    #     X=df['review_cleaning'].copy()
-    #     y=df['sentiment'].copy()
-    #     print("here")
-    #     print(y.unique())
-    #     max_len = 100
-    #     tok = Tokenizer(num_words=2000)
-    #     tok.fit_on_texts(X)
-    #     sequences = tok.texts_to_sequences(X)
-    #     sequences_matrix = sequence.pad_sequences(sequences)
-    #     X_train, X_test, Y_train, Y_test = train_test_split(sequences_matrix, y, test_size=0.3, random_state=2)
-    #     #X_train_tfidf1,X_test_tfidf1 , y_train1 ,y_test1  = self.solve_unbalance()
-    #     # Define the input layer
-    #     # Define the input layer
-    #     inputs = Input(name='inputs', shape=[max_len])
-
-    # # Add an embedding layer
-    #     layer = Embedding(input_dim=2000, output_dim=50)(inputs)
-
-    #     # Flatten the embedding output to feed it into dense layers
-    #     layer = Flatten()(layer)
-
-    #     # Add a dense layer with ReLU activation
-    #     layer = Dense(256, activation='relu', name='FC1')(layer)
-
-    #     # Apply dropout
-    #     layer = Dropout(0.5)(layer)
-
-    #     # Add another dense layer with ReLU activation
-    #     layer = Dense(128, activation='relu', name='FC2')(layer)
-
-    #     # Apply dropout again
-    #     layer = Dropout(0.5)(layer)
-
-    #     # Add the output layer with sigmoid activation
-    #     layer = Dense(1, activation='sigmoid', name='output')(layer)
-
-    #     # Define the model
-    #     model = Model(inputs=inputs, outputs=layer)
-
-    #     # Compile the model
-    #     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-    #     historyANN=model.fit(X_train,Y_train,batch_size=32,epochs=10, validation_split=0.12)
-    #         #m2=model.fit(X_train_tfidf1,y_train1 )
-    #     pre, rec, f1, loss, acc=TFIDF.loss(Y_test, model.predict(X_test))
-    #         #pre1, rec1, f11, loss1, acc1=TFIDF.loss(y_test1, m2.predict(X_test_tfidf1))
-    #         #print('-------{h}-------'.format(h=name))
-    #         #print(pre, rec, f1, loss, acc)
-    #     name ='ANN'
-    #     results.append([name, pre, rec, f1, loss, acc])
-    #         #results1.append([name, pre1, rec1, f11, loss1, acc1])
-    #     df = pd.DataFrame(results, columns=['NAME', 'pre', 'rec', 'f1', 'loss', 'acc'])
-    #     #df1 = pd.DataFrame(results1, columns=['NAME', 'pre', 'rec', 'f1', 'loss', 'acc'])
-    #     #df.set_index('NAME', inplace=True)
-    #     df.sort_values(by=['acc'], ascending=False, inplace=True)
-    #     #df1.sort_values(by=['acc'], ascending=False, inplace=True)
-    #     return df
-####### Test Data
+# ####### Test Data
 
 # instance = TFIDF("df_contact","Womens Clothing E-Commerce Reviews") # Twitter_Data naive bayes
-# X_train_tfidf,X_test_tfidf , y_train ,y_test=instance.split_input()
-# # # #data = instance.read_data()
-# # df = instance.data_analysis_report()
-# # df = instance.create_sentiment_var()
-# # df = instance.word_map()
-# # df = instance.create_sentiment_var()
-# df,df1=instance.all_train()
-# print(df)
-# # print("######################################")
-# print(df1)
+# # X_train_tfidf,X_test_tfidf , y_train ,y_test=instance.split_input()
+# # # # #data = instance.read_data()
+# # # df = instance.data_analysis_report()
+# # # df = instance.create_sentiment_var()
+# # # df = instance.word_map()
+# # # df = instance.create_sentiment_var()
+# df1=instance.data_analysis_report()

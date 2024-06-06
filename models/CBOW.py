@@ -75,7 +75,7 @@ class CBOW:
     
     def select_product(self):
         df = self.read_data()
-        df_product = df[df['product']==self.product_name].head(1000)
+        df_product = df[df['product']==self.product_name].head(500)
         print("The total number of row in the product {nm} is {nb}".format(nb=df_product.shape[0],nm=self.product_name))
         return df_product
     @staticmethod
@@ -270,28 +270,26 @@ class CBOW:
     def hyper_tun(self):
         models= CBOW.models()
         X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
-       
         results = []
-        par=[]
         for name, model in models.items():
             if name == "DecisionTreeClassifier": ### Change name
-                parameters1 = {'max_features': ['log2', 'sqrt', 'auto'], 
+                parameters1 = {'max_features': ['log2', 'sqrt', 'auto'],
                               'criterion': ['entropy', 'gini'],
-                              'max_depth': [2, 3, 5, 10, 50], 
+                              'max_depth': [2, 3, 5, 10, 50],
                               'min_samples_split': [2, 3, 50, 100],
                               'min_samples_leaf': [1, 5, 8, 10]} ### Change parametrers
                 grid_obj = GridSearchCV(model, parameters1, cv=5, n_jobs=-1) ### Change parametrers
                 grid_obj = grid_obj.fit(X_train_tfidf, y_train)
                 clf = grid_obj.best_estimator_
-            
+
                 clf.fit(X_train_tfidf, y_train)
                 pre, rec, f1, loss, acc = CBOW.loss(y_test, clf.predict(X_test_tfidf))
                 results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
                 print(results)
             elif name == "RandomForestClassifier":
-                parameters2 = {'n_estimators': [25, 50, 100, 150], 
-                              'max_features': ['sqrt', 'log2', None], 
-                              'max_depth': [3, 6, 9], 
+                parameters2 = {'n_estimators': [25, 50, 100, 150],
+                              'max_features': ['sqrt', 'log2', None],
+                              'max_depth': [3, 6, 9],
                               'max_leaf_nodes': [3, 6, 9]}
                 grid_obj = GridSearchCV(model, parameters2, cv=5, n_jobs=-1)
                 grid_obj = grid_obj.fit(X_train_tfidf, y_train)
@@ -299,52 +297,64 @@ class CBOW:
                 clf.fit(X_train_tfidf, y_train)
                 pre, rec, f1, loss, acc = CBOW.loss(y_test, clf.predict(X_test_tfidf))
                 results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
-            
+            elif name == "AdaBoostClassifier":
+                parameters3 = {'n_estimators': [50, 100, 200],
+                          'learning_rate': [0.1, 1, 10]}
+                grid_obj = GridSearchCV(model, parameters3, cv=5, n_jobs=-1)
+                grid_obj = grid_obj.fit(X_train_tfidf, y_train)
+                clf = grid_obj.best_estimator_
+                clf.fit(X_train_tfidf, y_train)
+                pre, rec, f1, loss, acc = CBOW.loss(y_test, clf.predict(X_test_tfidf))
+                results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
+
+            elif name == "CatBoostClassifier":
+                parameters4 = {'iterations': [50, 100, 200],
+                          'learning_rate': [0.01, 0.1, 1]}
+                grid_obj = GridSearchCV(model, parameters4, cv=5, n_jobs=-1)
+                grid_obj = grid_obj.fit(X_train_tfidf, y_train)
+                clf = grid_obj.best_estimator_
+
+                clf.fit(X_train_tfidf, y_train)
+                pre, rec, f1, loss, acc = CBOW.loss(y_test, clf.predict(X_test_tfidf))
+                results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
+
+            elif name == "XGBoostClassifier":
+                parameters5 = {'n_estimators': [50, 100, 200],
+                          'learning_rate': [0.01, 0.1, 1],
+                          'max_depth': [3, 6, 9],
+                          'objective': ['binary:logistic']}
+                grid_obj = GridSearchCV(model, parameters5, cv=5, n_jobs=-1)
+                grid_obj = grid_obj.fit(X_train_tfidf, y_train)
+                clf = grid_obj.best_estimator_
+
+                clf.fit(X_train_tfidf, y_train)
+                pre, rec, f1, loss, acc = CBOW.loss(y_test, clf.predict(X_test_tfidf))
+                results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
+
+            elif name == "SVM":
+                parameters6 = {'kernel': ['linear', 'rbf'],
+                          'C': [0.1, 1, 10]}
+                grid_obj = GridSearchCV(model, parameters6, cv=5, n_jobs=-1)
+                grid_obj = grid_obj.fit(X_train_tfidf, y_train)
+                clf = grid_obj.best_estimator_
+
+                clf.fit(X_train_tfidf, y_train)
+                pre, rec, f1, loss, acc = CBOW.loss(y_test, clf.predict(X_test_tfidf))
+                results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
+
+            elif name == "KNeighborsClassifier":
+                parameters7 = {'n_neighbors': [2, 3, 5, 10],
+                          'weights': ['uniform', 'distance'],
+                          'algorithm': ['auto', 'ball_tree', 'kd_tree']}
+                grid_obj = GridSearchCV(model, parameters7, cv=5, n_jobs=-1)
+                grid_obj = grid_obj.fit(X_train_tfidf, y_train)
+                clf = grid_obj.best_estimator_
+
+                clf.fit(X_train_tfidf, y_train)
+                pre, rec, f1, loss, acc = CBOW.loss(y_test, clf.predict(X_test_tfidf))
+                results.append({'Model': name, 'Precision': pre, 'Recall': rec, 'F1 Score': f1, 'Log Loss': loss, 'Accuracy': acc})
 
         return pd.DataFrame(results)
-        # TODO Improv with good output
-    def bagging_predictions(self,estimator):
-            X_train_tfidf,X_test_tfidf , y_train ,y_test  = self.split_input()
-            """
-            I/P
-            estimator: The base estimator from which the ensemble is grown.
-            O/P
-            br_y_pred: Predictions on test data for the base estimator.
-            
-            """
-            regr = BaggingRegressor(base_estimator=estimator,
-                                    n_estimators=10,
-                                    max_samples=1.0,
-                                    bootstrap=True, # Samples are drawn with replacement
-                                    n_jobs= n_jobs,
-                                    random_state=random_state).fit(X_train_tfidf, y_train)
-
-            br_y_pred = regr.predict(X_test_tfidf)
-
-            rmse_val = mean_squared_error(y_test, br_y_pred, squared= False) # squared= False > returns Root Mean Square Error   
-
-            print(f'RMSE for base estimator {regr.base_estimator_} = {rmse_val}\n')
-            ### 
-            instance = CBOW("df_contact","jumia_reviews_df_multi_page")
-            # #data = instance.read_data()
-            # X_train_tfidf,X_test_tfidf , y_train ,y_test  = instance.split_input()
-
-
-            # predictions = np.column_stack((instance.bagging_predictions(DecisionTreeClassifier()),
-            #                               instance.bagging_predictions(KNeighborsClassifier()),
-            #                               instance.bagging_predictions(LogisticRegression()),
-            #                               instance.bagging_predictions(RandomForestClassifier())))
-            # print(f"Bagged predictions shape: {predictions.shape}")
-            # y_pred = np.mean(predictions, axis=1)
-
-            # print("Aggregated predictions (y_pred) shape", y_pred.shape)
-
-            # rmse_val = mean_squared_error(y_test, y_pred, squared= False) # squared= False > returns Root Mean Square Error  
-            # models_scores = [] 
-            # models_scores.append(['Bagging', rmse_val])
-
-            # print(f'\nBagging RMSE= {rmse_val}')
-            return br_y_pred
             
                 
                 
@@ -353,16 +363,16 @@ class CBOW:
 ####### Test Data
    
 instance = CBOW("df_contact","jumia_reviews_df_multi_page")
-# # #data = instance.read_data()
-# df = instance.data_analysis_report()
-# df = instance.create_sentiment_var()
-# df = instance.word_map()
+# # # #data = instance.read_data()
+# # df = instance.data_analysis_report()
+# # df = instance.create_sentiment_var()
+# # df = instance.word_map()
 
 
 
-data = instance.read_data()
-# df = instance.data_analysis_report()
-# df = instance.create_sentiment_var()
-# df = instance.word_map()
-df = instance.train_model()
+# data = instance.read_data()
+# # df = instance.data_analysis_report()
+# # df = instance.create_sentiment_var()
+# # df = instance.word_map()
+df = instance.hyper_tun()
 print(df)
